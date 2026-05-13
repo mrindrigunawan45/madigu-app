@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MaDiGu Pro - Mitra Digital Guru</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --p: #2563eb; --bg: #f8fafc; --white: #ffffff; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; color: #1e293b; }
+        .container { max-width: 500px; margin: auto; padding: 15px; }
+        .card { background: var(--white); padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        button { width: 100%; padding: 12px; background: var(--p); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .btn-download { background: #10b981; margin-top: 10px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; }
+        #login-screen, #app-screen { display: none; }
+        .active { display: block !important; }
+        .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 500px; background: white; display: flex; border-top: 1px solid var(--border); z-index: 10; height: 65px; }
+        .nav-btn { flex: 1; text-align: center; padding: 10px; font-size: 11px; cursor: pointer; color: #64748b; }
+        .nav-btn.active-nav { color: var(--p); font-weight: bold; border-top: 3px solid var(--p); background: #f1f5f9; }
+        .st-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+        .atte-btn { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-weight: bold; }
+        .h-active { background: var(--success) !important; color: white; border: none; }
+        .s-active { background: #eab308 !important; color: white; border: none; }
+        .i-active { background: #a855f7 !important; color: white; border: none; }
+        .a-active { background: var(--danger) !important; color: white; border: none; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; }
+        th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
+        th { background: #f8fafc; }
+        #loading { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); display:none; justify-content:center; align-items:center; z-index:999; font-weight: bold; color: var(--p); flex-direction: column; }
+        .hist-card { border-left: 5px solid var(--p); padding: 12px; margin-bottom: 15px; background: #f1f5f9; border-radius: 0 10px 10px 0; font-size: 13px; }
+        .absen-tag { font-size: 11px; background: #fee2e2; color: #b91c1c; padding: 4px 8px; border-radius: 6px; margin-top: 8px; display: block; }
+    </style>
+</head>
+<body>
+    <div id="loading"><div>Sedang Memproses...</div></div>
+    <div class="container">
+        <div id="login-screen" class="active">
+            <div class="card" style="text-align: center; margin-top: 50px;">
+                <h1 style="color:var(--p); margin:0;">MaDiGu</h1>
+                <p style="font-size:12px; color:#64748b; margin-top:5px;">Mitra Digital Guru</p><br>
+                <input type="text" id="user" placeholder="Username">
+                <input type="password" id="pass" placeholder="Password">
+                <button onclick="doLogin()">LOGIN</button>
+            </div>
+        </div>
+
+        <div id="app-screen">
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; background: var(--p); color: white;">
+                <div><b id="user-n">...</b><br><small id="school-n"></small></div>
+                <button onclick="logout()" style="width:auto; padding:6px 12px; background:rgba(255,255,255,0.2); border:1px solid white; font-size: 11px;">Keluar</button>
+            </div>
+
+            <div id="tab-input" class="tab-content active">
+                <div class="card">
+                    <input type="date" id="tgl">
+                    <select id="mapel"><option value="">Pilih Mapel</option></select>
+                    <select id="kelas" onchange="getStudents()"><option value="">Pilih Kelas</option></select>
+                    <textarea id="materi" placeholder="Materi / Pokok Bahasan..."></textarea>
+                    <textarea id="kegiatan" placeholder="Keterangan / Tugas..."></textarea>
+                </div>
+                <div id="student-list"></div>
+                <button id="save-btn" onclick="save()" style="display:none; background:var(--success); margin-top:20px; font-size:16px; height:55px;">SIMPAN DATA</button>
+            </div>
+
+            <div id="tab-history" class="tab-content" style="display:none;">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>📚 Riwayat Jurnal</h3>
+                        <button class="btn-download" onclick="downloadHistory()">Excel (Semua)</button>
+                    </div>
+                    <div id="hist-list" style="margin-top:10px;"></div>
+                </div>
+            </div>
+
+            <div id="tab-rekap" class="tab-content" style="display:none;">
+                <div class="card">
+                    <h3>📊 Rekap Kehadiran</h3>
+                    <select id="rekap-kelas" onchange="loadRekap()"></select>
+                    <button id="btn-dl-rekap" class="btn-download" onclick="downloadRekap()" style="display:none;">Download Excel (.xlsx)</button>
+                    <div style="overflow-x:auto; margin-top:15px;">
+                        <table>
+                            <thead><tr><th>Nama</th><th>S</th><th>I</th><th>A</th><th>%</th></tr></thead>
+                            <tbody id="rekap-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav">
+                <div class="nav-btn active-nav" id="n-input" onclick="switchTab('input')">📝<br>Jurnal</div>
+                <div class="nav-btn" id="n-history" onclick="switchTab('history')">📚<br>Riwayat</div>
+                <div class="nav-btn" id="n-rekap" onclick="switchTab('rekap')">📊<br>Rekap</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjdubKOStczpnDJ3dT9395yAmwe5AQ6a5mFy95G5izrJFOye1Q_kEMq10VhYMxXUCD/exec"; 
+    
+    let GURU = {}; let ATTE = {}; let DATA_REKAP = [];
+
+    window.onload = () => { 
+        const s = localStorage.getItem("madigu_session"); 
+        if(s) { GURU = JSON.parse(s); startApp(); } 
+    };
+
+    async function api(p) {
+        document.getElementById('loading').style.display='flex';
+        try {
+            const r = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(p) });
+            const res = await r.json();
+            document.getElementById('loading').style.display='none';
+            return res;
+        } catch(e) { 
+            document.getElementById('loading').style.display='none';
+            alert("Gagal koneksi server!"); 
+        }
+    }
+
+    async function doLogin() {
+        const u = document.getElementById('user').value;
+        const p = document.getElementById('pass').value;
+        const res = await api({ action: "login", user: u, pass: p });
+        if(res && res.success) { 
+            GURU = res; 
+            localStorage.setItem("madigu_session", JSON.stringify(res)); 
+            startApp(); 
+        } else alert("Login Gagal!");
+    }
+
+    function startApp() {
+        document.getElementById('login-screen').classList.remove('active');
+        document.getElementById('app-screen').classList.add('active');
+        document.getElementById('user-n').innerText = GURU.nama;
+        document.getElementById('school-n').innerText = GURU.schoolId;
+        document.getElementById('tgl').value = new Date().toISOString().split('T')[0];
+        initData();
+    }
+
+    async function initData() {
+        const res = await api({ action: "getInitialData", schoolId: GURU.schoolId });
+        if(res) {
+            let k = '<option value="">Pilih Kelas</option>';
+            res.daftarKelas.forEach(x => k += `<option>${x}</option>`);
+            document.getElementById('kelas').innerHTML = k;
+            document.getElementById('rekap-kelas').innerHTML = k;
+            let m = '<option value="">Pilih Mapel</option>';
+            res.daftarMapel.forEach(x => m += `<option>${x}</option>`);
+            document.getElementById('mapel').innerHTML = m;
+        }
+    }
+
+    async function getStudents() {
+        const k = document.getElementById('kelas').value;
+        if(!k) return;
+        const res = await api({ action: "getStudents", kelas: k, schoolId: GURU.schoolId });
+        ATTE = {}; 
+        let h = '<div class="card"><h4>Presensi Siswa</h4>';
+        res.forEach((n, i) => {
+            ATTE[n] = 'H';
+            h += `<div class="st-row"><span>${n}</span><div>
+                <button class="atte-btn h-active" id="H-${i}" onclick="setA('${n}','H',${i})">H</button>
+                <button class="atte-btn" id="S-${i}" onclick="setA('${n}','S',${i})">S</button>
+                <button class="atte-btn" id="I-${i}" onclick="setA('${n}','I',${i})">I</button>
+                <button class="atte-btn" id="A-${i}" onclick="setA('${n}','A',${i})">A</button>
+            </div></div>`;
+        });
+        document.getElementById('student-list').innerHTML = h + '</div>';
+        document.getElementById('save-btn').style.display = 'block';
+    }
+
+    function setA(n, s, i) {
+        ATTE[n] = s;
+        ['H','S','I','A'].forEach(x => document.getElementById(`${x}-${i}`).className = 'atte-btn');
+        document.getElementById(`${s}-${i}`).className = 'atte-btn ' + s.toLowerCase() + '-active';
+    }
+
+    async function save() {
+        const m = { tanggal: document.getElementById('tgl').value, guru: GURU.nama, mapel: document.getElementById('mapel').value, kelas: document.getElementById('kelas').value, materi: document.getElementById('materi').value, kegiatan: document.getElementById('kegiatan').value };
+        if(!m.mapel || !m.materi || !m.kelas) return alert("Lengkapi data!");
+        const d = [];
+        for(let n in ATTE) d.push({...m, nama: n, status: ATTE[n]});
+        const res = await api({ action: "save", data: d, schoolId: GURU.schoolId });
+        if(res && res.success) { alert("Berhasil!"); location.reload(); }
+    }
+
+    async function switchTab(t) {
+        document.querySelectorAll('.tab-content').forEach(x => x.style.display = 'none');
+        document.querySelectorAll('.nav-btn').forEach(x => x.classList.remove('active-nav'));
+        document.getElementById('tab-'+t).style.display = 'block';
+        document.getElementById('n-'+t).classList.add('active-nav');
+        
+        if(t === 'history') {
+            const h = await api({ action: "getHistory", guru: GURU.nama, schoolId: GURU.schoolId });
+            document.getElementById('hist-list').innerHTML = h.map(x => `
+                <div class="hist-card">
+                    <b>${x.tgl} - ${x.kelas}</b> (${x.mapel})<br>
+                    <div>📖 ${x.materi}</div>
+                    ${x.absen.length > 0 ? `<span class="absen-tag">🚫 Tidak Hadir: ${x.absen.join(', ')}</span>` : `<span class="absen-tag" style="background:#dcfce7; color:#166534">✅ Hadir Semua</span>`}
+                </div>
+            `).join('') || '<p>Belum ada data.</p>';
+        }
+    }
+
+    async function loadRekap() {
+        const k = document.getElementById('rekap-kelas').value;
+        if(!k) return;
+        DATA_REKAP = await api({ action: "getRekap", kelas: k, schoolId: GURU.schoolId });
+        document.getElementById('rekap-list').innerHTML = DATA_REKAP.map(r => `<tr><td>${r.nama}</td><td>${r.s}</td><td>${r.i}</td><td>${r.a}</td><td><b>${r.p}</b></td></tr>`).join('');
+        document.getElementById('btn-dl-rekap').style.display = 'flex';
+    }
+
+    // DOWNLOAD SEMUA HISTORY
+    async function downloadHistory() {
+        const allData = await api({ action: "getAllHistory", guru: GURU.nama, schoolId: GURU.schoolId });
+        if(!allData || allData.length === 0) return alert("Kosong!");
+        const s = [["JURNAL LENGKAP"], ["Guru:", GURU.nama], ["Sekolah:", GURU.schoolId], [], ["No", "Tanggal", "Kelas", "Mapel", "Materi", "Siswa Tidak Hadir"]];
+        allData.forEach((h, idx) => s.push([idx+1, h.tgl, h.kelas, h.mapel, h.materi, h.absen.join(', ') || '-']));
+        const ws = XLSX.utils.aoa_to_sheet(s);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Jurnal");
+        XLSX.writeFile(wb, `Jurnal_Full_${GURU.nama}.xlsx`);
+    }
+
+    function downloadRekap() {
+        const k = document.getElementById('rekap-kelas').value;
+        const s = [["REKAP ABSENSI"], ["Kelas:", k], ["Sekolah:", GURU.schoolId], [], ["No", "Nama", "S", "I", "A", "% Hadir"]];
+        DATA_REKAP.forEach((r, idx) => s.push([idx+1, r.nama, r.s, r.i, r.a, r.p]));
+        const ws = XLSX.utils.aoa_to_sheet(s);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Rekap");
+        XLSX.writeFile(wb, `Rekap_Absen_${k}.xlsx`);
+    }
+
+    function logout() { localStorage.clear(); location.reload(); }
+</script>
+</body>
+</html>
